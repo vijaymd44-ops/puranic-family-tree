@@ -1,6 +1,6 @@
-# Mahabharata Family Tree
+# Puranic Family Tree
 
-Interactive, self-contained family tree of the Mahabharata cast: **1633 people, 769 families/unions**
+Interactive, self-contained family tree of the Mahabharata, Ramayana and Puranic genealogies: **1633 people, 769 families/unions**
 (includes 100 Kauravas, gods/apsaras where the epic treats them as parents, and 5 labelled placeholders).
 
 - Data source of truth: `genealogy.py` (writes `data/mahabharata.json`)
