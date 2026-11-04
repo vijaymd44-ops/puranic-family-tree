@@ -213,19 +213,8 @@ body.og #treeWrap:before{inset:0 40px 18px;border-radius:18px}
 <header>
   <div class="brand"><div class="eyebrow" id="eyebrow"></div><h1 id="ttl"></h1><div class="subtitle" id="sub"></div></div>
   <div class="ac search" id="acMain"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search a character…" autocomplete="off" aria-label="Search people"></div>
-  <div class="youbox" id="youBox"></div>
 </header>
-<div id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle">
-  <div class="wcard">
-    <div class="eyebrow">Welcome</div>
-    <h2 id="wTitle">Choose a character</h2>
-    <p>Pick a character to centre the tree on them. You can also pick “who you identify with” to make kinship questions quick.</p>
-    <div class="ac search" id="acWelcome"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="wq" type="search" placeholder="e.g. Arjuna, Draupadi, Krishna…" autocomplete="off" aria-label="Search your name"></div>
-    <button class="skip" id="wSkip">Just browsing</button>
-    <div class="wrel"><span>…or start from</span><div class="ac search" id="acRel"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="wr" type="search" placeholder="Search a character…" autocomplete="off" aria-label="Search the person you are related to"></div></div>
-    <div class="fine">Your choice is remembered on this device only.</div>
-  </div>
-</div>
+
 <main>
   <section id="treeWrap">
     <div class="depth"><label><span class="lbl">Ancestors</span><span class="abbr">↑</span><select id="up" aria-label="Ancestor generations"></select></label><label><span class="lbl">Descendants</span><span class="abbr">↓</span><select id="down" aria-label="Descendant generations"></select></label></div>
@@ -659,34 +648,11 @@ const gcQ=[];let gcTimer=null;
 function gcFlush(){try{const g=window.goatcounter;if(g&&typeof g.count==="function"){while(gcQ.length){const o=gcQ.shift();try{g.count(o)}catch(e){}}clearInterval(gcTimer);gcTimer=null;return true}}catch(e){}return false}
 function track(path,title){return;try{if(document.body.classList.contains("og")) return;gcQ.push({path,title:title||path,event:true});
   if(!gcFlush()&&!gcTimer){let n=0;gcTimer=setInterval(()=>{if(gcFlush()||++n>40){clearInterval(gcTimer);gcTimer=null}},500)}}catch(e){}}
-// ---------- "you" ----------
-const LS="mahabharataTree.you";
+// No personal "find yourself" flow: historical epic tree, opens on Arjuna.
 let browse=false,relTo=null;
-function loadYou(){try{const v=JSON.parse(localStorage.getItem(LS)||"null");if(!v) return null;
-  if(v.browse){browse=true;if(v.rel!=null&&P[v.rel]&&P[v.rel].n===v.rn) relTo=v.rel;return null}
-  if(P[v.i]&&P[v.i].n===v.n) return v.i}catch(e){}return null}
-function setYou(i){let prev=null;try{prev=JSON.parse(localStorage.getItem(LS)||"null")}catch(e){}
-  if(!(prev&&prev.i===i&&prev.n===P[i].n)) track("identified/"+P[i].n,"Identified: "+P[i].n);
-  you=i;browse=false;relTo=null;try{localStorage.setItem(LS,JSON.stringify({i,n:P[i].n}))}catch(e){}youBox();acA.set(i)}
-function setBrowse(r){you=null;browse=true;relTo=r;try{localStorage.setItem(LS,JSON.stringify(r!=null?{browse:true,rel:r,rn:P[r].n}:{browse:true}))}catch(e){}youBox();{const r=$("#ra");r.value="";delete r.dataset.id}if(r!=null) acA.set(r)}
-function youBox(){const b=$("#youBox");
-  b.innerHTML=you!=null?`<span>You: <b>${esc(disp(you))}</b></span><button class="linkbtn" id="chgYou">Not you? Change</button>`:`<span>${browse?relTo!=null?`Related to <b>${esc(disp(relTo))}</b>`:"Browsing":""}</span><button class="${browse?"linkbtn":"btn"}" id="chgYou">${browse?"Find yourself · Change":"Find yourself"}</button>`;
-  $("#chgYou").onclick=showWelcome}
-function showWelcome(){const w=$("#welcome");w.hidden=false;$("#wq").value="";setTimeout(()=>$("#wq").focus(),50)}
-function hideWelcome(){$("#welcome").hidden=true}
-autocomplete($("#acWelcome"),i=>{setYou(i);hideWelcome();select(i);tab("person")});
-$("#wSkip").onclick=()=>{track("browsing","Just browsing");setBrowse(null);hideWelcome();select(M.home)};
-autocomplete($("#acRel"),i=>{track("related-to/"+P[i].n,"Related to: "+P[i].n);setBrowse(i);hideWelcome();select(i);tab("person")});
-$("#welcome").addEventListener("click",e=>{if(e.target.id==="welcome") hideWelcome()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#welcome").hidden) hideWelcome()});
-you=loadYou();
-const qs=new URLSearchParams(location.search);const me=qs.get("me");
-if(me!=null&&/^\d+$/.test(me)&&P[+me]) setYou(+me);
+function setYou(i){}
 const hm=location.hash.match(/^#(?:p=)?(\d+)$/);const hashP=hm&&P[+hm[1]]?+hm[1]:null;
-const start=hashP!=null?hashP:you!=null?you:relTo!=null?relTo:M.home;
-youBox();select(start,true);if(you!=null) acA.set(you);
-if(relTo!=null&&you==null) acA.set(relTo);
-if(you==null&&!browse&&hashP==null&&!document.body.classList.contains("og")) showWelcome();
+select(hashP!=null?hashP:M.home,true);
 function panTo(i){const n=vp.querySelector(`.node[data-id="${i}"]`);if(!n) return;const m=n.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);const r=svg.getBoundingClientRect();view.tx=r.width/2-(+m[1]+BW/2)*view.k;view.ty=r.height/2-(+m[2]+BH/2)*view.k;TZ.apply()}
 window.FT={_data:{P,F},panTo,allPaths,get rel(){return REL},showRelPath,expanded:()=>({sib:[...EXS],kids:[...EXK],par:[...EXP]}),get pathZoom(){return PZ.view},get treeZoom(){return TZ.view},setYou,get you(){return you},get browse(){return browse},get relTo(){return relTo},home:M.home,select,relate,search,shortest,describe,closestBlood,term,find:n=>P.findIndex(p=>p.n===n),get current(){return current}};
 })();
