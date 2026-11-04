@@ -343,6 +343,11 @@ function sideOf(n,nodes,g){const fl=freeAt(n,nodes,-1),fr=freeAt(n,nodes,1);if(f
   return fl&&fr?"R":"T"}
 const SIDE=new Map();
 const EXS=new Set(),EXK=new Set(),EXP=new Set();const fn=i=>disp(i).replace(/ \(.*\)$/,"");
+// group children by the union they come from, so each stem drops from that child's own parent couple
+function famLinks(links,me,ks,spNodes){const by=new Map();
+  for(const k of ks){const f=P[me.i].fs.find(f=>F[f].c.includes(k.i));const s=f!=null?spouseIn(f,me.i):null;const sn=s!=null?spNodes.find(n=>n.i===s)||null:null;
+    const key=sn?sn.i:-1;if(!by.has(key)) by.set(key,{a:me,b:sn,kids:[]});by.get(key).kids.push(k)}
+  for(const v of by.values()) links.push({t:"kids",from:{a:v.a,b:v.b},kids:v.kids})}
 function expand(nodes,links){MARS=links.filter(L=>L.t==="mar");const shown=new Set(nodes.map(n=>n.i));const base=nodes.slice();
   for(const n of base){n.sib=siblingsOf(n.i).some(s=>!shown.has(s));n.kid=(n.role==="center"||n.role==="desc")&&childrenOf(n.i).some(c=>!shown.has(c))}
   const mk=(p,y,role)=>{shown.add(p);const t={i:p,y,role,sp:[],kids:[]};for(const s of spousesOf(p)) if(!shown.has(s)){shown.add(s);t.sp.push(s)}
@@ -351,7 +356,7 @@ function expand(nodes,links){MARS=links.filter(L=>L.t==="mar");const shown=new S
   const place=(t,x0)=>{const bx=x0+(t.w-(1+t.sp.length))/2;const me={i:t.i,x:bx,y:t.y,role:t.role,kid:t.kid,xp:true};nodes.push(me);
     const sps=t.sp.map((s,k)=>{const n={i:s,x:bx+1+k,y:t.y,role:"xsp",xp:true};nodes.push(n);links.push({t:"mar",a:me,b:n});return n});
     if(t.kids.length){const cw=t.kids.reduce((a,k)=>a+k.w,0);let cx=x0+(t.w-cw)/2;const ks=t.kids.map(k=>{const r=place(k,cx);cx+=k.w;return r});
-      links.push({t:"kids",from:{a:me,b:sps.length===1?sps[0]:null},kids:ks});links.push({t:"lab",text:fn(t.i)+"’s children",ns:ks,row:t.y+1})}return me};
+      famLinks(links,me,ks,sps);links.push({t:"lab",text:fn(t.i)+"’s children",ns:ks,row:t.y+1})}return me};
   const group=n=>{const g=new Set([n]);let ch=true;while(ch){ch=false;for(const L of links) if(L.t==="mar"&&base.includes(L.a)&&base.includes(L.b)&&(g.has(L.a)!==g.has(L.b))){g.add(L.a);g.add(L.b);ch=true}}return [...g]};
   const insert=(c,trees)=>{const W=trees.reduce((a,t)=>a+t.w,0);const S=new Set(nodes.filter(n=>n.x>c-1+1e-6));
     // never split a couple: if one partner moves, the other moves with them
@@ -363,7 +368,7 @@ function expand(nodes,links){MARS=links.filter(L=>L.t==="mar");const shown=new S
         if(trees.length){const c=left?Math.min(...g.map(o=>o.x)):Math.max(...g.map(o=>o.x))+1;const sib=insert(c,trees);
           const L=links.find(L=>L.t==="kids"&&L.kids.includes(n));if(L) L.kids.push(...sib);else links.push({t:"kids",from:null,kids:[n,...sib]});links.push({t:"lab",text:fn(n.i)+"’s siblings",ns:sib,row:n.y})}}}
     if(n.kid&&EXK.has(n.i)){const trees=childrenOf(n.i).filter(c=>!shown.has(c)).map(c=>mk(c,n.y+1,"xk"));
-      if(trees.length){const g=group(n);const ks=insert(Math.max(...g.map(o=>o.x))+1,trees);links.push({t:"kids",from:{a:n,b:null},kids:ks});links.push({t:"lab",text:fn(n.i)+"’s children",ns:ks,row:n.y+1})}}}
+      if(trees.length){const g=group(n);const ks=insert(Math.max(...g.map(o=>o.x))+1,trees);famLinks(links,n,ks,g.filter(o=>o!==n&&MARS.some(L=>(L.a===n&&L.b===o)||(L.b===n&&L.a===o))));links.push({t:"lab",text:fn(n.i)+"’s children",ns:ks,row:n.y+1})}}}
   compact(nodes,links)}
 // safety net: couples (joined by a marriage line) form blocks; if two blocks in a row collide or interleave,
 // push the later block and everything to its right (in every row) until they are a full column apart
@@ -450,14 +455,25 @@ function toggleX(b){const kind=b.dataset.kind,id=+b.dataset.for,S=XS[kind];const
   if(tw.length) requestAnimationFrame(step)}
 function render(keep){const {nodes,links}=layout(current,+sel.up.value,+sel.down.value);vp.innerHTML="";
   const gl=el("g",{},vp),gn=el("g",{},vp),gb=el("g",{},vp);const og=document.body.classList.contains("og");const X=n=>n.x*SX,Y=y=>y*SY;
+  // x where a couple's marriage line can be seen: the gap between them, or, if other boxes sit between
+  // (several wives in a row), the gap right beside this particular spouse
+  const G=SX-BW;const coupleX=(a,b)=>{const lo=Math.min(a.x,b.x),hi=Math.max(a.x,b.x);
+    const between=nodes.some(n=>n.y===a.y&&n!==a&&n!==b&&n.x>lo+1e-6&&n.x<hi-1e-6);
+    if(!between) return (X(a)+X(b)+BW)/2;return b.x>a.x?X(b)-G/2:X(b)+BW+G/2};
+  // where a child's stem starts: adjacent couple -> below the marriage diamond; spouse further along the row ->
+  // straight down from the bottom of that spouse's own box, so it can't be read as belonging to a co-wife
+  const stemFrom=(a,b)=>{const lo=Math.min(a.x,b.x),hi=Math.max(a.x,b.x);
+    const between=nodes.some(n=>n.y===a.y&&n!==a&&n!==b&&n.x>lo+1e-6&&n.x<hi-1e-6);
+    return between?[X(b)+BW/2-(b.x>a.x?30:-30),Y(b.y)+BH]:[(X(a)+X(b)+BW)/2,Y(a.y)+BH/2+4]};
+  const LANE=new Map();
   for(const L of links){
     if(L.t==="lab"){const xs=L.ns.map(X);const cx=(Math.min(...xs)+Math.max(...xs)+BW)/2,cy=Y(L.row)-(SY-BH)/2-9;const t=el("text",{class:"xlab",x:cx,y:cy,"text-anchor":"middle","font-size":13,fill:"#8a7a5c","font-style":"italic","letter-spacing":".03em",stroke:"#fbf8f2","stroke-width":5,"paint-order":"stroke","stroke-linejoin":"round"},gb);t.textContent=L.text;continue}
     if(L.t==="mar"){const a=L.a.x<L.b.x?L.a:L.b,b=L.a.x<L.b.x?L.b:L.a;const y=Y(a.y)+BH/2;
-      el("line",{x1:X(a)+BW,y1:y,x2:X(b),y2:y,stroke:"#a8864a","stroke-width":1.1},gl);const mx=(X(a)+BW+X(b))/2;el("path",{d:`M${mx},${y-4}l4,4l-4,4l-4,-4z`,fill:"#fbf8f2",stroke:"#a8864a","stroke-width":1},gl)}
-    else{const f=L.from,ky=Y(L.kids[0].y),by=ky-(SY-BH)/2;const xs=L.kids.map(k=>X(k)+BW/2);let d="",fx=xs[0];
-      if(f){fx=f.b?(X(f.a)+X(f.b))/2+BW/2:X(f.a)+BW/2;d=`M${fx},${Y(f.a.y)+(f.b?BH/2+4:BH)}V${by}`}
+      el("line",{x1:X(a)+BW,y1:y,x2:X(b),y2:y,stroke:"#a8864a","stroke-width":1.1},gl);const mx=coupleX(L.a,L.b);el("path",{d:`M${mx},${y-4}l4,4l-4,4l-4,-4z`,fill:"#fbf8f2",stroke:"#a8864a","stroke-width":1},gl)}
+    else{const f=L.from,ky=Y(L.kids[0].y);let by=ky-(SY-BH)/2;if(f&&f.b){const k=f.a.i+':'+L.kids[0].y;const n=(LANE.get(k)||0);LANE.set(k,n+1);by+=n%2?4*(n+1):-4*n};const xs=L.kids.map(k=>X(k)+BW/2);let d="",fx=xs[0];
+      if(f){const st=f.b?stemFrom(f.a,f.b):[X(f.a)+BW/2,Y(f.a.y)+BH];fx=st[0];d=`M${fx},${st[1]}V${by}`}
       const mn=Math.min(fx,...xs),mx=Math.max(fx,...xs);if(mx-mn>1) d+=`M${mn},${by}H${mx}`;
-      for(const x of xs) d+=`M${x},${by}V${ky}`;el("path",{d,stroke:L.dash?"#c08a3e":"#b5aa95","stroke-width":L.dash?1.4:1.1,"stroke-dasharray":L.dash?"5 4":"",fill:"none","stroke-linejoin":"round",class:L.dash?"plink sec":"plink"},gl)}}
+      for(const x of xs) d+=`M${x},${by}V${ky}`;el("path",{d,stroke:L.dash?"#c08a3e":"#b5aa95","stroke-width":L.dash?1.4:1.1,"stroke-dasharray":L.dash?"5 4":"",fill:"none","stroke-linejoin":"round",class:L.dash?"plink sec":"plink","data-a":f?f.a.i:"","data-b":f&&f.b?f.b.i:"","data-fx":fx,"data-kids":L.kids.map(k=>k.i).join(",")},gl)}}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   // fit/centre on the focus person together with their spouse(s), so a couple is never cut in half
   {const c=nodes.find(n=>n.role==="center");const g=nodes.filter(n=>n===c||(n.y===c.y&&links.some(L=>L.t==="mar"&&((L.a===c&&L.b===n)||(L.b===c&&L.a===n)))));
@@ -666,7 +682,7 @@ youBox();select(start,true);if(you!=null) acA.set(you);
 if(relTo!=null&&you==null) acA.set(relTo);
 if(you==null&&!browse&&hashP==null&&!document.body.classList.contains("og")) showWelcome();
 function panTo(i){const n=vp.querySelector(`.node[data-id="${i}"]`);if(!n) return;const m=n.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);const r=svg.getBoundingClientRect();view.tx=r.width/2-(+m[1]+BW/2)*view.k;view.ty=r.height/2-(+m[2]+BH/2)*view.k;TZ.apply()}
-window.FT={panTo,allPaths,get rel(){return REL},showRelPath,expanded:()=>({sib:[...EXS],kids:[...EXK],par:[...EXP]}),get pathZoom(){return PZ.view},get treeZoom(){return TZ.view},setYou,get you(){return you},get browse(){return browse},get relTo(){return relTo},home:M.home,select,relate,search,shortest,describe,closestBlood,term,find:n=>P.findIndex(p=>p.n===n),get current(){return current}};
+window.FT={_data:{P,F},panTo,allPaths,get rel(){return REL},showRelPath,expanded:()=>({sib:[...EXS],kids:[...EXK],par:[...EXP]}),get pathZoom(){return PZ.view},get treeZoom(){return TZ.view},setYou,get you(){return you},get browse(){return browse},get relTo(){return relTo},home:M.home,select,relate,search,shortest,describe,closestBlood,term,find:n=>P.findIndex(p=>p.n===n),get current(){return current}};
 })();
 </script>
 </body>
