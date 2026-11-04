@@ -265,7 +265,8 @@ const childrenOf=i=>{const r=[];for(const f of P[i].fs) for(const c of F[f].c) i
 // siblings = anyone sharing at least one primary (social/legal) parent: full + half siblings (e.g. Kunti's and Madri's sons via Pandu)
 const sibPar=i=>{const r=pParentsOf(i);for(const e of P[i].pr||[]) if(e[0]!=null&&(e[3]||e[2]==="Niyoga")&&!r.includes(e[0])) r.push(e[0]);return r};
 const SIBKIDS={};P.forEach((_,c)=>{for(const p of sibPar(c)) (SIBKIDS[p]=SIBKIDS[p]||[]).push(c)});
-const siblingsOf=i=>{const r=[];for(const f of P[i].fc) for(const c of F[f].c) if(c!==i&&!r.includes(c)) r.push(c);for(const p of sibPar(i)) for(const c of SIBKIDS[p]||[]) if(c!==i&&!r.includes(c)) r.push(c);return r};
+const sibOk=(i,c,p)=>!P[p].dv||(P[i].dv&&P[c].dv);
+const siblingsOf=i=>{const r=[];for(const f of P[i].fc) for(const c of F[f].c) if(c!==i&&!r.includes(c)&&[F[f].h,F[f].w].some(p=>p!=null&&sibOk(i,c,p))) r.push(c);for(const p of sibPar(i)) for(const c of SIBKIDS[p]||[]) if(c!==i&&!r.includes(c)&&sibOk(i,c,p)) r.push(c);return r};
 const years=i=>{const p=P[i];return (p.dv?"✦ ":"")+(p.t||p.s||"")};
 const disp=i=>P[i].n;
 const sexWord=(i,m,f,u)=>P[i].x==="M"?m:P[i].x==="F"?f:u;
