@@ -262,7 +262,10 @@ const spouseIn=(f,i)=>{const o=F[f].h===i?F[f].w:F[f].h;return o==null||o===i?nu
 const spousesOf=i=>{const r=[];for(const f of P[i].fs){const s=spouseIn(f,i);if(s!=null&&!r.includes(s))r.push(s)}return r};
 const allChildrenOf=i=>{const r=[];for(const f of P[i].fs) for(const c of F[f].c.concat(F[f].s||[])) if(!r.includes(c)) r.push(c);return r};
 const childrenOf=i=>{const r=[];for(const f of P[i].fs) for(const c of F[f].c) if(!r.includes(c)) r.push(c);return r};
-const siblingsOf=i=>{const r=[];for(const f of P[i].fc) for(const c of F[f].c) if(c!==i&&!r.includes(c)) r.push(c);return r};
+// siblings = anyone sharing at least one primary (social/legal) parent: full + half siblings (e.g. Kunti's and Madri's sons via Pandu)
+const sibPar=i=>{const r=pParentsOf(i);for(const e of P[i].pr||[]) if(e[0]!=null&&(e[3]||e[2]==="Niyoga")&&!r.includes(e[0])) r.push(e[0]);return r};
+const SIBKIDS={};P.forEach((_,c)=>{for(const p of sibPar(c)) (SIBKIDS[p]=SIBKIDS[p]||[]).push(c)});
+const siblingsOf=i=>{const r=[];for(const f of P[i].fc) for(const c of F[f].c) if(c!==i&&!r.includes(c)) r.push(c);for(const p of sibPar(i)) for(const c of SIBKIDS[p]||[]) if(c!==i&&!r.includes(c)) r.push(c);return r};
 const years=i=>{const p=P[i];return (p.dv?"✦ ":"")+(p.t||p.s||"")};
 const disp=i=>P[i].n;
 const sexWord=(i,m,f,u)=>P[i].x==="M"?m:P[i].x==="F"?f:u;
@@ -654,7 +657,7 @@ function setYou(i){}
 const hm=location.hash.match(/^#(?:p=)?(\d+)$/);const hashP=hm&&P[+hm[1]]?+hm[1]:null;
 select(hashP!=null?hashP:M.home,true);
 function panTo(i){const n=vp.querySelector(`.node[data-id="${i}"]`);if(!n) return;const m=n.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);const r=svg.getBoundingClientRect();view.tx=r.width/2-(+m[1]+BW/2)*view.k;view.ty=r.height/2-(+m[2]+BH/2)*view.k;TZ.apply()}
-window.FT={_data:{P,F},panTo,allPaths,get rel(){return REL},showRelPath,expanded:()=>({sib:[...EXS],kids:[...EXK],par:[...EXP]}),get pathZoom(){return PZ.view},get treeZoom(){return TZ.view},setYou,get you(){return you},get browse(){return browse},get relTo(){return relTo},home:M.home,select,relate,search,shortest,describe,closestBlood,term,find:n=>P.findIndex(p=>p.n===n),get current(){return current}};
+window.FT={_data:{P,F},siblingsOf,panTo,allPaths,get rel(){return REL},showRelPath,expanded:()=>({sib:[...EXS],kids:[...EXK],par:[...EXP]}),get pathZoom(){return PZ.view},get treeZoom(){return TZ.view},setYou,get you(){return you},get browse(){return browse},get relTo(){return relTo},home:M.home,select,relate,search,shortest,describe,closestBlood,term,find:n=>P.findIndex(p=>p.n===n),get current(){return current}};
 })();
 </script>
 </body>
