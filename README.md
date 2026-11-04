@@ -1,6 +1,6 @@
 # Mahabharata Family Tree
 
-Interactive, self-contained family tree of the Mahabharata cast: **389 people, 164 families/unions**
+Interactive, self-contained family tree of the Mahabharata cast: **1633 people, 769 families/unions**
 (includes 100 Kauravas, gods/apsaras where the epic treats them as parents, and 5 labelled placeholders).
 
 - Data source of truth: `genealogy.py` (writes `data/mahabharata.json`)
@@ -17,7 +17,7 @@ Kinship search uses both kinds of links.
     python3 build_site.py             # writes site/index.html  (--noindex to add robots noindex, --home "Krishna" to change start person)
     /workspace/.venv-pw/bin/python tests/test_site.py   # Playwright checks + screenshots (uses /usr/bin/google-chrome; override with CHROME=...)
 
-**Genealogy reference:** BORI Critical Edition of the Mahabharata (Pune), mainly Adi Parva chs. 57–63, 89–90, 94–117 and later parvas (Ganguli / van Buitenen translations); Harivamsha and Bhagavata Purana for Yadava / Lunar links.
+**Genealogy reference:** BORI Critical Edition of the Mahabharata (Pune), mainly Adi Parva chs. 57–63, 89–90, 94–117 and later parvas (Ganguli / van Buitenen translations); Harivamsha and the Bhagavata, Vishnu, Matsya, Vayu, Brahma, Brahmanda, Agni, Garuda, Padma, Kurma, Linga, Markandeya and Skanda Puranas (plus Valmiki Ramayana genealogies) for the creation lines (Svayambhuva Manu, Daksha, Kashyapa), the Solar dynasty (Ikshvaku to Rama and on to Brihadbala and Sumitra; Videha/Mithila), and the Lunar houses: Yadava (Haihaya, Kroshtu, Andhaka, Bhoja, Kukura, Vrishni; Krishna's 80 sons), Paurava and Kuru (both Adi Parva king-lists), Panchala, Magadha, Kashi, Anu (Shibi, Anga, Vanga, Kalinga), Druhyu and Turvasu. Where sources disagree, one reading is followed and the variants are noted on the person.
 
 **Portraits:** major-character portraits are AI-generated illustrations in a consistent epic-painting style (not historical likenesses); others use initials placeholders.
 
