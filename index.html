@@ -269,6 +269,9 @@ const childrenOf=i=>{const r=[];for(const f of P[i].fs) for(const c of F[f].c) i
 const sibPar=i=>{const r=pParentsOf(i);for(const e of P[i].pr||[]) if(e[0]!=null&&(e[3]||e[2]==="Niyoga")&&!r.includes(e[0])) r.push(e[0]);return r};
 const SIBKIDS={};P.forEach((_,c)=>{for(const p of sibPar(c)) (SIBKIDS[p]=SIBKIDS[p]||[]).push(c)});
 const sibOk=(i,c,p)=>!P[p].dv||(P[i].dv&&P[c].dv);
+// full sibling = same recognised parents; otherwise half: which parent is shared, which is the other one
+const sibInfo=(i,c)=>{const a=pParentsOf(i),b=pParentsOf(c);const full=a.length>0&&a.length===b.length&&a.every(p=>b.includes(p));const sa=sibPar(i),sb=sibPar(c);return {full,shared:sa.filter(p=>sb.includes(p)),other:b.filter(p=>!sa.includes(p))}};
+const halfLabel=(i,c)=>{const r=sibInfo(i,c);if(r.full) return "";if(r.other.length) return "half · "+r.other.map(o=>(P[o].x==="F"?"mother ":P[o].x==="M"?"father ":"parent ")+fn(o)).join(", ");return r.shared.length?"half · via "+r.shared.map(fn).join(", "):"half"};
 const siblingsOf=i=>{const r=[];for(const f of P[i].fc) for(const c of F[f].c) if(c!==i&&!r.includes(c)&&[F[f].h,F[f].w].some(p=>p!=null&&sibOk(i,c,p))) r.push(c);for(const p of sibPar(i)) for(const c of SIBKIDS[p]||[]) if(c!==i&&!r.includes(c)&&sibOk(i,c,p)) r.push(c);return r};
 const years=i=>{const p=P[i];return (p.dv?"✦ ":"")+(p.t||p.s||"")};
 const disp=i=>P[i].n;
@@ -361,9 +364,17 @@ function expand(nodes,links){MARS=links.filter(L=>L.t==="mar");const shown=new S
     for(const n of S) n.x+=W;let x=c;return trees.map(t=>{const r=place(t,x);x+=t.w;return r})};
   for(const n of base){
     if(n.sib){const g=group(n);n.side=EXS.has(n.i)&&SIDE.has(n.i)?SIDE.get(n.i):sideOf(n,nodes,g);const left=n.side==="L";
-      if(EXS.has(n.i)){const trees=siblingsOf(n.i).filter(s=>!shown.has(s)).map(s=>mk(s,n.y,"xs"));
+      if(EXS.has(n.i)){const ss=siblingsOf(n.i).filter(s=>!shown.has(s));const grp=new Map();
+        for(const s of ss){const r=sibInfo(n.i,s);const k=r.full?"full":"h:"+r.shared.join(",")+"|"+r.other.join(",");if(!grp.has(k)) grp.set(k,{full:r.full,r,ss:[]});grp.get(k).ss.push(s)}
+        let gs=[...grp.values()].sort((a,b)=>b.full-a.full);if(left) gs=gs.reverse();   // full siblings nearest, half-siblings further out
+        const order=gs.flatMap(G=>G.ss.map(s=>[G,s]));const trees=order.map(([G,s])=>mk(s,n.y,"xs"));
         if(trees.length){const c=left?Math.min(...g.map(o=>o.x)):Math.max(...g.map(o=>o.x))+1;const sib=insert(c,trees);
-          const L=links.find(L=>L.t==="kids"&&L.kids.includes(n));if(L) L.kids.push(...sib);else links.push({t:"kids",from:null,kids:[n,...sib]});links.push({t:"lab",text:fn(n.i)+"’s siblings",ns:sib,row:n.y})}}}
+          const L=links.find(L=>L.t==="kids"&&L.kids.includes(n));
+          for(const G of gs){const ns=sib.filter((_,k)=>order[k][0]===G);if(!ns.length) continue;
+            if(G.full){if(L) L.kids.push(...ns);else links.push({t:"kids",from:null,kids:[n,...ns]});links.push({t:"lab",text:fn(n.i)+"’s siblings",ns,row:n.y});continue}
+            const pn=L&&L.from?[L.from.a,L.from.b].find(o=>o&&G.r.shared.includes(o.i)):null;
+            links.push(pn?{t:"kids",from:{a:pn,b:null},kids:ns,half:true}:{t:"kids",from:null,kids:[n,...ns],half:true});
+            links.push({t:"lab",text:"Half-sibling"+(ns.length>1?"s":"")+" · "+(G.r.other.length?G.r.other.map(o=>(P[o].x==="F"?"mother ":"father ")+fn(o)).join(", "):"via "+G.r.shared.map(fn).join(", ")),ns,row:n.y})}}}}
     if(n.kid&&EXK.has(n.i)){const trees=childrenOf(n.i).filter(c=>!shown.has(c)).map(c=>mk(c,n.y+1,"xk"));
       if(trees.length){const g=group(n);const ks=insert(Math.max(...g.map(o=>o.x))+1,trees);famLinks(links,n,ks,g.filter(o=>o!==n&&MARS.some(L=>(L.a===n&&L.b===o)||(L.b===n&&L.a===o))));links.push({t:"lab",text:fn(n.i)+"’s children",ns:ks,row:n.y+1})}}}
   compact(nodes,links)}
@@ -473,9 +484,9 @@ function render(keep){const {nodes,links}=layout(current,+sel.up.value,+sel.down
     if(L.t==="mar"){const a=L.a.x<L.b.x?L.a:L.b,b=L.a.x<L.b.x?L.b:L.a;const y=Y(a.y)+BH/2;
       el("line",{x1:X(a)+BW,y1:y,x2:X(b),y2:y,stroke:"#a8864a","stroke-width":1.1},gl);const mx=coupleX(L.a,L.b);el("path",{d:`M${mx},${y-4}l4,4l-4,4l-4,-4z`,fill:"#fbf8f2",stroke:"#a8864a","stroke-width":1},gl)}
     else{const f=L.from,ky=Y(L.kids[0].y);let by=ky-(SY-BH)/2;if(f&&f.b){const k=f.a.i+':'+L.kids[0].y;const n=(LANE.get(k)||0);LANE.set(k,n+1);by+=n%2?4*(n+1):-4*n};const xs=L.kids.map(k=>X(k)+BW/2);let d="",fx=xs[0];
-      if(f){const st=f.b?stemFrom(f.a,f.b):[X(f.a)+BW/2,Y(f.a.y)+BH];fx=st[0];d=`M${fx},${st[1]}V${by}`}
+      if(L.half) by+=8;if(f){const st=f.b?stemFrom(f.a,f.b):[X(f.a)+BW/2+(L.half?(xs.reduce((a,b)=>a+b,0)/xs.length>X(f.a)+BW/2?40:-40):0),Y(f.a.y)+BH];fx=st[0];d=`M${fx},${st[1]}V${by}`}
       const mn=Math.min(fx,...xs),mx=Math.max(fx,...xs);if(mx-mn>1) d+=`M${mn},${by}H${mx}`;
-      for(const x of xs) d+=`M${x},${by}V${ky}`;el("path",{d,stroke:L.dash?"#c08a3e":"#b5aa95","stroke-width":L.dash?1.4:1.1,"stroke-dasharray":L.dash?"5 4":"",fill:"none","stroke-linejoin":"round",class:L.dash?"plink sec":"plink","data-a":f?f.a.i:"","data-b":f&&f.b?f.b.i:"","data-fx":fx,"data-kids":L.kids.map(k=>k.i).join(",")},gl)}}
+      for(const x of xs) d+=`M${x},${by}V${ky}`;el("path",{d,stroke:L.half?"#6f86a3":L.dash?"#c08a3e":"#b5aa95","stroke-width":L.half||L.dash?1.4:1.1,"stroke-dasharray":L.half?"7 3":L.dash?"5 4":"",fill:"none","stroke-linejoin":"round",class:L.half?"plink half":L.dash?"plink sec":"plink","data-a":f?f.a.i:"","data-b":f&&f.b?f.b.i:"","data-fx":fx,"data-kids":L.kids.map(k=>k.i).join(",")},gl)}}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   // fit/centre on the focus person together with their spouse(s), so a couple is never cut in half
   {const c=nodes.find(n=>n.role==="center");const g=nodes.filter(n=>n===c||(n.y===c.y&&links.some(L=>L.t==="mar"&&((L.a===c&&L.b===n)||(L.b===c&&L.a===n)))));
@@ -512,7 +523,7 @@ function personPane(i){const p=P[i];const pc={M:"m",F:"f"}[p.x]||"u";let h=`<div
   h+=`<h3>Spouses &amp; partners</h3>${chips(spousesOf(i),q=>{const f=p.fs.find(f=>spouseIn(f,i)===q);return f!=null&&F[f].k?F[f].k:""})}`;
   const kids=[];for(const f of p.fs){for(const c of F[f].c) kids.push([c,F[f].k||""]);for(const c of F[f].s||[]) kids.push([c,F[f].sk||""])}
   h+=`<h3>Children</h3>`+(kids.length?`<div class="chips">${kids.map(([c,l])=>chip(c,l)).join("")}</div>`:`<div class="none">None recorded</div>`);
-  h+=`<h3>Siblings</h3>${chips(siblingsOf(i))}`;
+  h+=`<h3>Siblings</h3>${chips(siblingsOf(i),q=>halfLabel(i,q))}`;
   h+=`<div class="row" style="margin-top:26px">${you!=null&&you!==i?`<button class="btn pri" data-relyou="${i}">How is ${esc(fn(i))} related to ${esc(fn(you))}?</button>`:""}<button class="btn" data-relfrom="${i}">How is ${esc(fn(i))} related to…</button></div>`;
   $("#p-person").innerHTML=h}
 document.addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g){select(+g.dataset.go);return}
