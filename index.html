@@ -79,8 +79,10 @@ main{display:flex;flex-direction:column}
 .depth{position:absolute;left:20px;top:20px;display:flex;gap:10px;align-items:center;background:rgba(255,253,249,.88);backdrop-filter:blur(6px);border:1px solid var(--rule);border-radius:12px;padding:5px 10px;box-shadow:var(--shadow);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);z-index:5}
 .depth label{display:flex;align-items:center;gap:6px}.depth .abbr{display:none;font-size:14px;color:var(--gold)}
 .depth select{appearance:none;-webkit-appearance:none;border:1px solid var(--rule);background:var(--card);border-radius:8px;padding:4px 10px;font-size:13px;letter-spacing:0;color:var(--ink);cursor:pointer}
+.sgrp{margin:6px 0 10px}.sgrp .sgl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:8px 0 6px}.sgrp .sgl small{text-transform:none;letter-spacing:0;font-size:12.5px;margin-left:6px;color:var(--ink-2)}.sgrp.half .sgl{color:#4f6582}
 .legend{position:absolute;left:20px;bottom:18px;display:flex;gap:14px;font-size:11px;color:var(--mute);letter-spacing:.04em;z-index:5;flex-wrap:wrap}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid}
+.legend .lg-line{display:inline-block;width:22px;height:0;border-top:1.6px solid #b5aa95;vertical-align:3px;margin-right:5px}.legend .lg-line.half{border-top:1.6px dashed #6f86a3}.legend .lg-line.sec{border-top:1.6px dashed #c08a3e}
 aside{background:var(--paper-2);border-top:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;padding:0 14px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--paper-2);z-index:10}
 .tabs button{flex:1;padding:14px 4px 12px;border:0;background:none;cursor:pointer;color:var(--mute);font-family:var(--serif);font-size:17px;font-weight:600;position:relative;transition:color .25s}
@@ -227,7 +229,7 @@ body.og #treeWrap:before{inset:0 40px 18px;border-radius:18px}
       <button id="fit" title="Fit to screen" aria-label="Fit to screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button id="homeBtn" title="Back to you" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7M6 10v10h12V10"/></svg></button>
     </div>
-    <div class="legend"><span><i style="background:var(--m);border-color:var(--m-edge)"></i>Male</span><span><i style="background:var(--f);border-color:var(--f-edge)"></i>Female</span><span><i style="background:#f8efd6;border-color:var(--gold)"></i>Chosen</span><span>✦ Divine</span><span><i style="background:var(--card);border-color:var(--ink);border-width:1.5px"></i>Selected</span></div>
+    <div class="legend"><span><i style="background:var(--m);border-color:var(--m-edge)"></i>Male</span><span><i style="background:var(--f);border-color:var(--f-edge)"></i>Female</span><span><i style="background:#f8efd6;border-color:var(--gold)"></i>Chosen</span><span>✦ Divine</span><span><i style="background:var(--card);border-color:var(--ink);border-width:1.5px"></i>Selected</span><span><b class="lg-line"></b>Parent–child</span><span><b class="lg-line half"></b>Half-sibling / step-parent</span><span><b class="lg-line sec"></b>Divine / foster</span></div>
     <div id="pathView" aria-live="polite"><div class="pvhead"><div class="t"><div class="eyebrow">Kinship</div><h3 id="pvTitle"></h3><div class="pnav" id="pvNav"><button data-pstep="-1" aria-label="Previous path">‹</button><span class="pc" id="pvCount"></span><button data-pstep="1" aria-label="Next path">›</button></div></div><button class="btn" id="backTree"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Back to tree</button></div>
       <svg id="pathSvg" role="img" aria-label="Relationship path chart"><g id="pvp"></g></svg>
       <details id="pathSteps"><summary>Step by step</summary><div id="pvSteps"></div></details></div>
@@ -372,9 +374,14 @@ function expand(nodes,links){MARS=links.filter(L=>L.t==="mar");const shown=new S
           const L=links.find(L=>L.t==="kids"&&L.kids.includes(n));
           for(const G of gs){const ns=sib.filter((_,k)=>order[k][0]===G);if(!ns.length) continue;
             if(G.full){if(L) L.kids.push(...ns);else links.push({t:"kids",from:null,kids:[n,...ns]});links.push({t:"lab",text:fn(n.i)+"’s siblings",ns,row:n.y});continue}
-            const pn=L&&L.from?[L.from.a,L.from.b].find(o=>o&&G.r.shared.includes(o.i)):null;
-            links.push(pn?{t:"kids",from:{a:pn,b:null},kids:ns,half:true}:{t:"kids",from:null,kids:[n,...ns],half:true});
-            links.push({t:"lab",text:"Half-sibling"+(ns.length>1?"s":"")+" · "+(G.r.other.length?G.r.other.map(o=>(P[o].x==="F"?"mother ":"father ")+fn(o)).join(", "):"via "+G.r.shared.map(fn).join(", ")),ns,row:n.y})}}}}
+            const pn=L&&L.from?[L.from.a,L.from.b].find(o=>o&&G.r.shared.includes(o.i)):null;let st=null;
+            if(pn&&G.r.other.length===1&&!shown.has(G.r.other[0])){const o=G.r.other[0],xs=ns.map(q=>q.x);
+              // step-parent sits in the parents' row straight above their own children (column nearest the shared parent)
+              const free=x=>!nodes.some(m=>m.y===pn.y&&Math.abs(m.x-x)<0.99);
+              const mx=xs.reduce((a,b)=>a+b,0)/xs.length,cand=[...new Set(xs.flatMap(x=>[x,x-1,x+1,x-2,x+2]))];const cx=xs.slice().sort((a,b)=>Math.abs(a-pn.x)-Math.abs(b-pn.x)).find(free)??cand.filter(free).sort((a,b)=>Math.abs(a-mx)-Math.abs(b-mx)||Math.abs(b-pn.x)-Math.abs(a-pn.x))[0];
+              if(cx!=null){st={i:o,x:cx,y:pn.y,role:"step",xp:true,cap:P[o].dv?fn(ns[0].i)+"’s "+(P[o].x==="F"?"mother":"father"):P[o].x==="F"?"Step-mother":P[o].x==="M"?"Step-father":"Step-parent",step:true};nodes.push(st);shown.add(o);links.push({t:"smar",a:pn,b:st})}}
+            links.push(pn?{t:"kids",from:{a:pn,b:st},kids:ns,half:true,stemB:!!st}:{t:"kids",from:null,kids:[n,...ns],half:true});
+            if(!st) links.push({t:"lab",text:"Half-sibling"+(ns.length>1?"s":"")+" · "+(G.r.other.length?G.r.other.map(o=>(P[o].x==="F"?"mother ":"father ")+fn(o)).join(", "):"via "+G.r.shared.map(fn).join(", ")),ns,row:n.y})}}}}
     if(n.kid&&EXK.has(n.i)){const trees=childrenOf(n.i).filter(c=>!shown.has(c)).map(c=>mk(c,n.y+1,"xk"));
       if(trees.length){const g=group(n);const ks=insert(Math.max(...g.map(o=>o.x))+1,trees);famLinks(links,n,ks,g.filter(o=>o!==n&&MARS.some(L=>(L.a===n&&L.b===o)||(L.b===n&&L.a===o))));links.push({t:"lab",text:fn(n.i)+"’s children",ns:ks,row:n.y+1})}}}
   compact(nodes,links)}
@@ -481,10 +488,12 @@ function render(keep){const {nodes,links}=layout(current,+sel.up.value,+sel.down
   const LANE=new Map();
   for(const L of links){
     if(L.t==="lab"){const xs=L.ns.map(X);const cx=(Math.min(...xs)+Math.max(...xs)+BW)/2,cy=Y(L.row)-(SY-BH)/2-9;const t=el("text",{class:"xlab",x:cx,y:cy,"text-anchor":"middle","font-size":13,fill:"#8a7a5c","font-style":"italic","letter-spacing":".03em",stroke:"#fbf8f2","stroke-width":5,"paint-order":"stroke","stroke-linejoin":"round"},gb);t.textContent=L.text;continue}
+    if(L.t==="smar"){const a=L.a.x<L.b.x?L.a:L.b,b=L.a.x<L.b.x?L.b:L.a;const y=Y(a.y)+BH/2+6;
+      el("path",{d:`M${X(a)+BW},${y}H${X(b)}`,stroke:"#6f86a3","stroke-width":1.3,"stroke-dasharray":"7 3",fill:"none",class:"smar"},gl);const mx=L.b.x<L.a.x?X(L.b)+BW+G/2:X(L.b)-G/2;el("path",{d:`M${mx},${y-4}l4,4l-4,4l-4,-4z`,fill:"#fbf8f2",stroke:"#6f86a3","stroke-width":1},gl);continue}
     if(L.t==="mar"){const a=L.a.x<L.b.x?L.a:L.b,b=L.a.x<L.b.x?L.b:L.a;const y=Y(a.y)+BH/2;
       el("line",{x1:X(a)+BW,y1:y,x2:X(b),y2:y,stroke:"#a8864a","stroke-width":1.1},gl);const mx=coupleX(L.a,L.b);el("path",{d:`M${mx},${y-4}l4,4l-4,4l-4,-4z`,fill:"#fbf8f2",stroke:"#a8864a","stroke-width":1},gl)}
     else{const f=L.from,ky=Y(L.kids[0].y);let by=ky-(SY-BH)/2;if(f&&f.b){const k=f.a.i+':'+L.kids[0].y;const n=(LANE.get(k)||0);LANE.set(k,n+1);by+=n%2?4*(n+1):-4*n};const xs=L.kids.map(k=>X(k)+BW/2);let d="",fx=xs[0];
-      if(L.half) by+=8;if(f){const st=f.b?stemFrom(f.a,f.b):[X(f.a)+BW/2+(L.half?(xs.reduce((a,b)=>a+b,0)/xs.length>X(f.a)+BW/2?40:-40):0),Y(f.a.y)+BH];fx=st[0];d=`M${fx},${st[1]}V${by}`}
+      if(L.half) by+=8;if(f){const st=L.stemB?[X(f.b)+BW/2,Y(f.b.y)+BH]:f.b?stemFrom(f.a,f.b):[X(f.a)+BW/2+(L.half?(xs.reduce((a,b)=>a+b,0)/xs.length>X(f.a)+BW/2?40:-40):0),Y(f.a.y)+BH];fx=st[0];d=`M${fx},${st[1]}V${by}`}
       const mn=Math.min(fx,...xs),mx=Math.max(fx,...xs);if(mx-mn>1) d+=`M${mn},${by}H${mx}`;
       for(const x of xs) d+=`M${x},${by}V${ky}`;el("path",{d,stroke:L.half?"#6f86a3":L.dash?"#c08a3e":"#b5aa95","stroke-width":L.half||L.dash?1.4:1.1,"stroke-dasharray":L.half?"7 3":L.dash?"5 4":"",fill:"none","stroke-linejoin":"round",class:L.half?"plink half":L.dash?"plink sec":"plink","data-a":f?f.a.i:"","data-b":f&&f.b?f.b.i:"","data-fx":fx,"data-kids":L.kids.map(k=>k.i).join(",")},gl)}}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
@@ -493,7 +502,7 @@ function render(keep){const {nodes,links}=layout(current,+sel.up.value,+sel.down
    const gx0=Math.min(...g.map(X)),gx1=Math.max(...g.map(X))+BW;centerPt={x:(gx0+gx1)/2,y:Y(c.y)+BH/2,w:gx1-gx0+16}}
   for(const n of nodes){drawBox(gn,n.i,X(n),Y(n.y),{gold:n.i===you,you:n.i===you,sel:n.role==="center"&&n.i!==you}).dataset.role=n.role+(n.y===0?"0":"");if(!og){if(n.sib&&!EXS.has(n.i)){n.side=sideOf(n,nodes,null);SIDE.set(n.i,n.side)}if(n.sib) xbtn(gb,"sib",n);if(n.kid) xbtn(gb,"kids",n);if(n.par) xbtn(gb,"par",n)}x0=Math.min(x0,X(n));y0=Math.min(y0,Y(n.y));x1=Math.max(x1,X(n)+BW);y1=Math.max(y1,Y(n.y)+BH)}
   for(const n of nodes) if(n.cap){const tg=el("g",{class:"pcap","data-for":n.i,transform:`translate(${X(n)+BW/2},${Y(n.y)+BH+13})`},gb);const w=n.cap.length*6.4+18;
-    const col=n.sec?"#a8864a":"#6f7f94";el("rect",{x:-w/2,y:-9,width:w,height:18,rx:9,fill:n.sec?"#fbf1dc":"#eef1f4",stroke:col,"stroke-width":.9},tg);
+    const col=n.step?"#6f86a3":n.sec?"#a8864a":"#6f7f94";el("rect",{x:-w/2,y:-9,width:w,height:18,rx:9,fill:n.step?"#fff":n.sec?"#fbf1dc":"#eef1f4",stroke:col,"stroke-width":.9,"stroke-dasharray":n.step?"3 2":""},tg);
     const t=el("text",{x:0,y:4,"text-anchor":"middle","font-size":11.5,fill:"#3a3326","font-weight":"600"},tg);t.textContent=n.cap}
   // generation labels
   bbox={x0:x0-50,y0:y0-84,x1:x1+50,y1:y1+60};if(!keep) fit(true)}
@@ -520,10 +529,17 @@ function personPane(i){const p=P[i];const pc={M:"m",F:"f"}[p.x]||"u";let h=`<div
   const pr=p.pr||[];
   h+=`<h3>Parents</h3><div class="pcard">`+(pr.length?pr.map(([q,r,t,pm])=>`<div class="prow ${pm?"pri":"sec"}" data-tag="${esc(t)}"><div class="prole">${esc(r)}${q!=null?` <span class="ptag">${esc(t)}</span>`:""}</div>${q!=null?chip(q,""):""}</div>`).join(""):`<div class="none">No parents recorded in the epic</div>`)+`</div>`;
   const fnotes=p.fc.concat(p.fx).map(f=>F[f].note).filter(Boolean);if(fnotes.length) h+=`<div class="yrs" style="margin-top:6px;font-size:13px">${fnotes.map(esc).join("<br>")}</div>`;
+  {const mine=pParentsOf(i),stp=[];for(const q of mine) for(const s2 of spousesOf(q)) if(!mine.includes(s2)&&!P[s2].dv&&!stp.some(z=>z[0]===s2)) stp.push([s2,q]);
+    if(stp.length) h+=`<h3>Step-parents</h3><div class="chips">${stp.map(([s2,q])=>chip(s2,(P[s2].x==="F"?"step-mother · wife of ":P[s2].x==="M"?"step-father · husband of ":"spouse of ")+fn(q))).join("")}</div>`}
   h+=`<h3>Spouses &amp; partners</h3>${chips(spousesOf(i),q=>{const f=p.fs.find(f=>spouseIn(f,i)===q);return f!=null&&F[f].k?F[f].k:""})}`;
   const kids=[];for(const f of p.fs){for(const c of F[f].c) kids.push([c,F[f].k||""]);for(const c of F[f].s||[]) kids.push([c,F[f].sk||""])}
   h+=`<h3>Children</h3>`+(kids.length?`<div class="chips">${kids.map(([c,l])=>chip(c,l)).join("")}</div>`:`<div class="none">None recorded</div>`);
-  h+=`<h3>Siblings</h3>${chips(siblingsOf(i),q=>halfLabel(i,q))}`;
+  {const sb=siblingsOf(i),full=[],hp=new Map();for(const q of sb){const r=sibInfo(i,q);if(r.full){full.push(q);continue}
+    const sh=r.shared.length?r.shared:[-1];const k=sh.join(",");if(!hp.has(k)) hp.set(k,[]);hp.get(k).push(q)}
+  h+=`<h3>Siblings</h3>`;if(!sb.length) h+=`<div class="none">None recorded</div>`;
+  if(full.length) h+=`<div class="sgrp"><div class="sgl">Full siblings <small>same father and mother</small></div>${chips(full)}</div>`;
+  for(const [k,qs] of hp){const sh=k.split(",").map(Number).filter(x=>x>=0);const how=sh.length?sh.map(p=>(P[p].x==="F"?"same mother, ":P[p].x==="M"?"same father, ":"via ")+fn(p)).join("; "):"one shared parent";
+    h+=`<div class="sgrp half"><div class="sgl">Half-siblings <small>${esc(how)}</small></div>${chips(qs,q=>{const o=sibInfo(i,q).other;return o.length?o.map(x=>(P[x].x==="F"?"mother ":"father ")+fn(x)).join(", "):""})}</div>`}}
   h+=`<div class="row" style="margin-top:26px">${you!=null&&you!==i?`<button class="btn pri" data-relyou="${i}">How is ${esc(fn(i))} related to ${esc(fn(you))}?</button>`:""}<button class="btn" data-relfrom="${i}">How is ${esc(fn(i))} related to…</button></div>`;
   $("#p-person").innerHTML=h}
 document.addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g){select(+g.dataset.go);return}
